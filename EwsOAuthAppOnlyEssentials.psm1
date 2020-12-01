@@ -1,8 +1,9 @@
 #Requires -Version 5.1
-using Namespace System.Security.Cryptography.X509Certificates
-using Namespace System.Management.Automation.Host
+using namespace System
+using namespace System.Security.Cryptography
+using namespace System.Security.Cryptography.X509Certificates
 
-<# v0.0.0 (incomplete and unpublished) #>
+<# v0.0.1 (incomplete and unpublished, but working great!) #>
 
 function New-EwsAccessToken {
 
@@ -55,7 +56,7 @@ function New-EwsAccessToken {
     if (-not (Test-CertificateProvider -Certificate $Script:Certificate)) {
 
         $ErrorMessage = "The supplied certificate does not use the provider 'Microsoft Enhanced RSA and AES Cryptographic Provider'.  " +
-        "For best luck, use a certificate generated using New-SelfSignedMSGraphApplicationCertificate."
+        "For best luck, use a certificate generated using New-SelfSignedEwsOAuthApplicationCertificate."
 
         throw $ErrorMessage
     }
@@ -66,7 +67,7 @@ function New-EwsAccessToken {
 
         alg = 'RS256'
         typ = 'JWT'
-        x5t = ConvertTo-Base64UrlFriendly -String ([System.Convert]::ToBase64String($Script:Certificate.GetCertHash()))
+        x5t = ConvertTo-Base64UrlFriendly -String ([Convert]::ToBase64String($Script:Certificate.GetCertHash()))
     }
 
     $JWTClaims = @{
@@ -79,25 +80,25 @@ function New-EwsAccessToken {
         sub = $ApplicationId.Guid
     }
 
-    $EncodedJWTHeader = [System.Convert]::ToBase64String(
+    $EncodedJWTHeader = [Convert]::ToBase64String(
         
-        [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $JWTHeader))
+        [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $JWTHeader))
     )
     
-    $EncodedJWTClaims = [System.Convert]::ToBase64String(
+    $EncodedJWTClaims = [Convert]::ToBase64String(
         
-        [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $JWTClaims))
+        [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $JWTClaims))
     )
 
     $JWT = ConvertTo-Base64UrlFriendly -String ($EncodedJWTHeader + '.' + $EncodedJWTClaims)
 
-    $Signature = ConvertTo-Base64UrlFriendly -String ([System.Convert]::ToBase64String(
+    $Signature = ConvertTo-Base64UrlFriendly -String ([Convert]::ToBase64String(
         
             $Script:Certificate.PrivateKey.SignData(
             
-                [System.Text.Encoding]::UTF8.GetBytes($JWT),
-                [Security.Cryptography.HashAlgorithmName]::SHA256,
-                [Security.Cryptography.RSASignaturePadding]::Pkcs1
+                [Text.Encoding]::UTF8.GetBytes($JWT),
+                [HashAlgorithmName]::SHA256,
+                [RSASignaturePadding]::Pkcs1
             )
         )
     )
@@ -125,6 +126,50 @@ function New-EwsAccessToken {
 
     try {
         Invoke-RestMethod @TokenRequestParams
+    }
+    catch { throw $_ }
+}
+
+function New-SelfSignedEwsOAuthApplicationCertificate {
+    [CmdletBinding()]
+    param (
+        [ValidatePattern('(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}$)')]
+        [string]$DnsName,    
+
+        [Parameter(Mandatory)]
+        [string]$FriendlyName,
+
+        [ValidateScript(
+            {
+                if (Test-Path -Path $_) { $true } else {
+
+                    throw "An example proper location would be 'cert:\CurrentUser\My'."
+                }
+            }
+        )]
+        [string]$CertStoreLocation = 'cert:\CurrentUser\My',
+
+        [datetime]$NotAfter = [datetime]::Now.AddDays(90),
+
+        [ValidateSet('Signature', 'KeyExchange')]
+        [string]$KeySpec = 'Signature'
+    )
+
+    $NewCertParams = @{
+
+        DnsName           = $DnsName
+        FriendlyName      = $FriendlyName
+        CertStoreLocation = $CertStoreLocation
+        NotAfter          = $NotAfter
+        KeyExportPolicy   = 'Exportable'
+        KeySpec           = $KeySpec
+        Provider          = 'Microsoft Enhanced RSA and AES Cryptographic Provider'
+        HashAlgorithm     = 'SHA256'
+        ErrorAction       = 'Stop'
+    }
+
+    try {
+        New-SelfSignedCertificate @NewCertParams
     }
     catch { throw $_ }
 }
