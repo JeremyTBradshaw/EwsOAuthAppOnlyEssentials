@@ -1,11 +1,15 @@
 # EwsOAuthAppOnlyEssentials
 A PowerShell module providing functions for easy App-Only use with EWS in Exchange Online.
 
-At this time, there is just the one function, making it easy to get an access token for EWS OAuth use, particularly in App-Only fashion using certificate credentials.  For instructions on setting up your App Registration in Azure AD, visit the link below:
+At this time, there are just two functions, making it easy to get an access token for EWS OAuth use, particularly in App-Only fashion using certificate credentials.  I plan to soon port the functions `Add-MSGraphApplicationKeyCredential` and `Remove-MSGraphApplicationKeyCredential` over to this module.  Beyond that, I'm debating whether or not to distribute the EWS Managed API 2.2 DLL file with this module, and then start including some extra functions (e.g. `New-EwsClient`).
+
+For instructions on setting up your App Registration in Azure AD, visit the link below:
 
 https://docs.microsoft.com/en-us/exchange/client-developer/exchange-web-services/how-to-authenticate-an-ews-application-by-using-oauth
 
-With that out of the way, use this module to simplify the process of getting tokens.  For sample use cases, check out my two scripts which use EWS Managed API (2.2) and support either OAuth (pairing well with this module) or Basic authentication:
+If you're interested in learning about 'certificate credentials', you can get a _brief_ description [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-certificate-credentials).  That page describes the basics of a client assertion, in the form of a JSON Web Token.  How that client assertion is packaged for delivery to Azure AD when requesting an access token is a more advanced topic.  With the `New-EwsOAuthAccessToken` function, and also with my [other module's](https://github.com/JeremyTBradshaw/MSGraphAppOnlyEssentials) function `New-MSGraphAccessToken`, I'm mimicking in PowerShell manually what is normally being done behind closed doors with the Microsoft Identity Client libraries.  That is, I'm performing the same steps of using the *Microsoft.IdentityModel.JsonWebTokens* library to create a signed assertion for use with the *.WithSignedAssertion()* method of the *ConfidentialClientApplicationBuilder* class.  To see an official Microsoft example of doing the same, but using C#, check out [this awesome, official wiki page](https://github.com/AzureAD/microsoft-authentication-library-for-dotnet/wiki/Client-Assertions).
+
+*With that out of the way*, use this module to simplify the process of getting tokens.  For sample use cases, check out my two scripts which use EWS Managed API (2.2) and support either OAuth (pairing well with this module) or Basic authentication:
 
 - [Get-MailboxLargeItems.ps1](https://github.com/JeremyTBradshaw/PowerShell/blob/main/Get-MailboxLargeItems.ps1)
 - [New-LargeItemsSearchFolder.ps1](https://github.com/JeremyTBradshaw/PowerShell/blob/main/New-LargeItemsSearchFolder.ps1)
@@ -49,4 +53,35 @@ $EwsTKParams = @{
 $EwsToken = New-EwsAccessToken @EwsTKParams
 
 .\New-LargeItemsSearchFolder.ps1 -AccessToken $EwsToken -MailboxListCSV .\Desktop\Users.csv -Archive -WhatIf
+```
+
+### New-SelfSignedEwsOAuthApplicationCertificate
+
+This function is simply a wrapper for New-SelfSignedCertificate with some base settings to ensure the certificate will work for App-Only authentication with Azure AD.  It uses the Microsoft Enhanced RSA and AES Cryptographic Provider and the SHA-256 hashing algorithm, ensuring the certificate will be able to do everything it might need with the other functions.  The other functions in this module (current/future) also insist on this provider.  I will soon begin enforcing the SHA-256 hashing algorigthm in the `New-EwsAccessToken` function (as well as the `New-MSGraphAccessToken` function from MSGraphAppOnlyEssentials).
+
+Parameters | Description
+---------: | :----------
+DnsName | Any FQDN of choice.  E.g. 20201204.ewsclient.jb365.ca
+FriendlyName | "jb365 EWS Client 2020-12-04"
+CertStoreLocation | Maps directly to the same parameter of New-SelfSignedCertificate.  Default is 'cert:\CurrentUser\My'.  Any valid location where write access is available will work (e.g. 'cert:\LocalMachine\My', when scheduling tasks using local SYSTEM account).
+NotAfter | Default is 90 days.  Supply a [datetime] like this `(Get-Date).AddDays(7)`.  The shorter the better, because applications can add new certificates for themselves using the addKey method, so we can easily roll these often, programmatically.
+KeySpec | **Signature**, KeyExchange.  Recommendation: don't change this unless there is a reason.
+
+**Example 1**
+
+```powershell
+New-SelfSignedEwsOAuthApplicationCertificate -DnsName "ewsclient.jb365.ca" -FriendlyName "jb365 EWS Client ($($date))"
+```
+
+**Example 2**
+
+```powershell
+$date = [datetime]::Now.ToString('yyyyMMdd')
+$newCertParams = @{
+    DnsName           = "$($date).EwsClient.jb365.ca"
+    FriendlyName      = "jb365 EWS client ($($date))"
+    CertStoreLocation = 'Cert:\LocalMachine\My'
+    NotAfter          = (Get-Date).AddDays(7)
+}
+New-SelfSignedEwsOAuthApplicationCertificate @newCertParams
 ```
