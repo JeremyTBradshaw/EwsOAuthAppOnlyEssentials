@@ -1,4 +1,6 @@
 # EwsOAuthAppOnlyEssentials
+[Available on PowerShell Gallery](https://www.powershellgallery.com/packages/EwsOAuthAppOnlyEssentials)
+
 A PowerShell module providing functions for easy App-Only use with EWS in Exchange Online.
 
 At this time, there are just two functions, making it easy to get an access token for EWS OAuth use, particularly in App-Only fashion using certificate credentials.  I plan to soon port the functions `Add-MSGraphApplicationKeyCredential` and `Remove-MSGraphApplicationKeyCredential` over to this module.  Beyond that, I'm debating whether or not to distribute the EWS Managed API 2.2 DLL file with this module, and then start including some extra functions (e.g. `New-EwsClient`).
