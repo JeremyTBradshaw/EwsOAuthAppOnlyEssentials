@@ -3,6 +3,8 @@
 
 A PowerShell module providing functions for easy App-Only use with EWS in Exchange Online.
 
+📰**Newsflash! (2021-02-05)** [Microsoft recently announced support for EWS with Exchange Online Application Access Policies](https://developer.microsoft.com/en-us/graph/blogs/application-access-policy-support-added-to-exchange-web-services/).  This means app-only/unattended (Application API permissions) access is available for EWS and the permissions granted to your app can be scoped to specific mailboxes.  [This same capability has been around for ~12 MS Graph API permissions](https://docs.microsoft.com/en-us/graph/auth-limit-mailbox-access), but now with this additional support for EWS, EWS Managed API just got a huge pump in the greatness department.  Of course MS Graph is still the way of the future (or so they say).  Regardless, EWS seems to be here for the time being, and is now the best toolset for unattended programming/scripting against EXO mailboxes.  Accordingly, this PowerShell module just became a lot more relevant🤠!
+
 At this time, there are just two functions, making it easy to get an access token for EWS OAuth use, particularly in App-Only fashion using certificate credentials.  I plan to soon port the functions `Add-MSGraphApplicationKeyCredential` and `Remove-MSGraphApplicationKeyCredential` over to this module.  Beyond that, I'm debating whether or not to distribute the EWS Managed API 2.2 DLL file with this module, and then start including some extra functions (e.g. `New-EwsClient`).
 
 For instructions on setting up your App Registration in Azure AD, visit the link below:
